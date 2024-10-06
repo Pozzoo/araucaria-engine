@@ -5,7 +5,8 @@ interface vec3d {
 }
 
 interface triangle {
-    p: Array<vec3d>;
+    p: Array<vec3d>,
+    colour?: string;
 }
 
 interface mesh {
@@ -20,9 +21,21 @@ class AraucariaEngine {
     private canvas: HTMLCanvasElement;
     private context: CanvasRenderingContext2D;
 
-    private meshCube: mesh
+    private readonly meshCube: mesh
+
     private readonly matProj: matrix4x4;
     private theta: number;
+
+    private readonly vCamera: vec3d = {x: 0, y: 0, z: 0};
+
+    private readonly point000: vec3d = {x: 0, y: 0, z: 0};
+    private readonly point001: vec3d = {x: 0, y: 0, z: 1};
+    private readonly point010: vec3d = {x: 0, y: 1, z: 0};
+    private readonly point011: vec3d = {x: 0, y: 1, z: 1};
+    private readonly point100: vec3d = {x: 1, y: 0, z: 0};
+    private readonly point101: vec3d = {x: 1, y: 0, z: 1};
+    private readonly point110: vec3d = {x: 1, y: 1, z: 0};
+    private readonly point111: vec3d = {x: 1, y: 1, z: 1};
 
     constructor() {
         let canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -33,7 +46,8 @@ class AraucariaEngine {
 
         context.translate(0.5, 0.5);
 
-        context.strokeStyle = 'black';
+
+        context.strokeStyle = 'white';
         context.lineWidth = 2;
 
         this.canvas = canvas;
@@ -43,55 +57,40 @@ class AraucariaEngine {
         this.matProj = {m : Array(4).fill(0).map(() => Array(4).fill(0))}
         
         this.theta = 0;
+
+        /*
+        window.ondragover = function(event) {
+            event.preventDefault();
+        }
+
+        window.ondrop = (event) => onDrop(event);
+
+        const onDrop = (event: DragEvent) => {
+            event.preventDefault();
+
+            if (event.dataTransfer == null) return;
+
+            let file = event.dataTransfer.files[0];
+            let reader = new FileReader();
+
+            reader.onloadend = (e) => onloadEnd(e);
+            reader.readAsText(file);
+
+            const onloadEnd = (e: ProgressEvent<FileReader>) => {
+                if (event.target == null) return;
+
+                const content: string = reader.result as string;
+
+                this.loadFromObjectFile(content)
+            }
+        }
+         */
     }
 
+
+
     onUserCreate(): boolean {
-        const point000: vec3d = {x: 0, y: 0, z: 0};
-        const point001: vec3d = {x: 0, y: 0, z: 1};
-        const point010: vec3d = {x: 0, y: 1, z: 0};
-        const point011: vec3d = {x: 0, y: 1, z: 1};
-        const point100: vec3d = {x: 1, y: 0, z: 0};
-        const point101: vec3d = {x: 1, y: 0, z: 1};
-        const point110: vec3d = {x: 1, y: 1, z: 0};
-        const point111: vec3d = {x: 1, y: 1, z: 1};
-
-        let triangle0: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle0, point000, point010, point110);
-
-        let triangle1: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle1, point000, point110, point100);
-
-        let triangle2: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle2, point100, point110, point111);
-
-        let triangle3: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle3, point100, point111, point101);
-
-        let triangle4: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle4, point101, point111, point011);
-
-        let triangle5: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle5, point101, point011, point001);
-
-        let triangle6: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle6, point001, point011, point010);
-
-        let triangle7: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle7, point001, point010, point000);
-
-        let triangle8: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle8, point010, point011, point111);
-
-        let triangle9: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle9, point010, point111, point110);
-
-        let triangle10: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle10, point101, point001, point000);
-
-        let triangle11: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle11, point101, point000, point100);
-
-        this.meshCube.tris.push(triangle0, triangle1, triangle2, triangle3, triangle4, triangle5, triangle6, triangle7, triangle8, triangle9, triangle10, triangle11);
+        this.createCube(this.meshCube);
 
         let fNear = 0.1;
         let fFar = 1000;
@@ -109,6 +108,48 @@ class AraucariaEngine {
 
         return true;
     }
+
+    createCube(cubeMesh: mesh) {
+        let triangle0: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle0, this.point000, this.point010, this.point110);
+
+        let triangle1: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle1, this.point000, this.point110, this.point100);
+
+        let triangle2: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle2, this.point100, this.point110, this.point111);
+
+        let triangle3: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle3, this.point100, this.point111, this.point101);
+
+        let triangle4: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle4, this.point101, this.point111, this.point011);
+
+        let triangle5: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle5, this.point101, this.point011, this.point001);
+
+        let triangle6: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle6, this.point001, this.point011, this.point010);
+
+        let triangle7: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle7, this.point001, this.point010, this.point000);
+
+        let triangle8: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle8, this.point010, this.point011, this.point111);
+
+        let triangle9: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle9, this.point010, this.point111, this.point110);
+
+        let triangle10: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle10, this.point101, this.point001, this.point000);
+
+        let triangle11: triangle = {p: new Array<vec3d>()};
+        this.populateTriangle(triangle11, this.point101, this.point000, this.point100);
+
+        cubeMesh.tris.push(triangle0, triangle1, triangle2, triangle3, triangle4, triangle5, triangle6, triangle7, triangle8, triangle9, triangle10, triangle11);
+    }
+
+
 
     onUserUpdate(elapsedTime: number): boolean {
         this.clearScreen();
@@ -155,15 +196,53 @@ class AraucariaEngine {
             this.multiplyMatrixByVector(triRotatedZ.p[1], triRotatedZX.p[1], matRotX);
             this.multiplyMatrixByVector(triRotatedZ.p[2], triRotatedZX.p[2], matRotX);
 
-            //Translate
+            //Offset into screen
             triTranslated.p = [...triRotatedZX.p];
             triTranslated.p[0].z += 3;
             triTranslated.p[1].z += 3;
             triTranslated.p[2].z += 3;
 
+            //Calculate normals
+            let normal: vec3d, line1: vec3d, line2: vec3d;
+            normal = {x: 0, y: 0, z: 0};
+            line1 = {x: 0, y: 0, z: 0};
+            line2 = {x: 0, y: 0, z: 0};
+
+            line1.x = triTranslated.p[1].x - triTranslated.p[0].x;
+            line1.y = triTranslated.p[1].y - triTranslated.p[0].y;
+            line1.z = triTranslated.p[1].z - triTranslated.p[0].z;
+
+            line2.x = triTranslated.p[2].x - triTranslated.p[0].x;
+            line2.y = triTranslated.p[2].y - triTranslated.p[0].y;
+            line2.z = triTranslated.p[2].z - triTranslated.p[0].z;
+
+            normal.x = line1.y * line2.z - line1.z * line2.y;
+            normal.y = line1.z * line2.x - line1.x * line2.z;
+            normal.z = line1.x * line2.y - line1.y * line2.x;
+
+            let normalLenght: number = Math.sqrt(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
+            normal.x /= normalLenght; normal.y /= normalLenght; normal.z /= normalLenght;
+
+            //Cull not visible triangles
+            if (normal.x  * (triTranslated.p[0].x - this.vCamera.x) +
+                normal.y  * (triTranslated.p[0].y - this.vCamera.y) +
+                normal.z  * (triTranslated.p[0].z - this.vCamera.z) > 0)
+            continue;
+
+            //Illumination
+            let lightDirection: vec3d = {x: 0, y: 0, z: -1};
+
+            let lightDirectionNormal: number = Math.sqrt(lightDirection.x*lightDirection.x + lightDirection.y*lightDirection.y + lightDirection.z*lightDirection.z);
+            lightDirection.x /= lightDirectionNormal; lightDirection.y /= lightDirectionNormal; lightDirection.z /= lightDirectionNormal;
+
+            let lightDotProduct: number = normal.x * lightDirection.x + normal.y * lightDirection.y + normal.z * lightDirection.z;
+            triTranslated.colour = this.defineShadeColour(lightDotProduct);
+
+            //Translate
             this.multiplyMatrixByVector(triTranslated.p[0], triProjected.p[0], this.matProj);
             this.multiplyMatrixByVector(triTranslated.p[1], triProjected.p[1], this.matProj);
             this.multiplyMatrixByVector(triTranslated.p[2], triProjected.p[2], this.matProj);
+            triProjected.colour = triTranslated.colour;
 
             //Scale to view
             triProjected.p[0].x += 1; triProjected.p[0].y += 1;
@@ -179,24 +258,24 @@ class AraucariaEngine {
             triProjected.p[2].x *= (window.innerWidth);
             triProjected.p[2].y *= (window.innerHeight);
 
-            this.drawTriangle(triProjected.p[0].x, triProjected.p[0].y, triProjected.p[1].x, triProjected.p[1].y, triProjected.p[2].x, triProjected.p[2].y);
+            this.fillTriangle(triProjected);
         }
 
         return true;
     }
 
-    drawTriangle(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
-        this.drawLine(x1, y1, x2, y2);
-        this.drawLine(x2, y2, x3, y3);
-        this.drawLine(x3, y3, x1, y1);
-    }
+    fillTriangle(triangle: triangle) {
+        this.context.strokeStyle = triangle.colour!;
 
-    drawLine(x1: number, y1: number, x2: number, y2: number) {
         this.context.beginPath();
-        this.context.lineWidth = 2;
-        this.context.moveTo(x1, y1);
-        this.context.lineTo(x2, y2);
+        this.context.moveTo(triangle.p[0].x, triangle.p[0].y);
+        this.context.lineTo(triangle.p[1].x, triangle.p[1].y);
+        this.context.lineTo(triangle.p[2].x, triangle.p[2].y);
         this.context.stroke();
+        this.context.closePath();
+
+        this.context.fillStyle = triangle.colour!;
+        this.context.fill();
     }
 
     clearScreen() {
@@ -233,8 +312,82 @@ class AraucariaEngine {
         triangle.p.push({ ...vector2 });
         triangle.p.push({ ...vector3 });
     }
+
+    private defineShadeColour(lum: number) {
+        const brightness = Math.round(lum * 32);
+
+        switch (brightness) {
+            case 0:
+                return "#000000"
+            case 1:
+                return "#080808"
+            case 2:
+                return "#101010"
+            case 3:
+                return "#191919"
+            case 4:
+                return "#212121"
+            case 5:
+                return "#292929"
+            case 6:
+                return "#313131"
+            case 7:
+                return "#3a3a3a"
+            case 8:
+                return "#424242"
+            case 9:
+                return "#4a4a4a"
+            case 10:
+                return "#525252"
+            case 11:
+                return "#5a5a5a"
+            case 12:
+                return "#636363"
+            case 13:
+                return "#6b6b6b"
+            case 14:
+                return "#737373"
+            case 15:
+                return "#7b7b7b"
+            case 16:
+                return "#848484"
+            case 17:
+                return "#8c8c8c"
+            case 18:
+                return "#949494"
+            case 19:
+                return "#9c9c9c"
+            case 20:
+                return "#a5a5a5"
+            case 21:
+                return "#adadad"
+            case 22:
+                return "#b5b5b5"
+            case 23:
+                return "#bdbdbd"
+            case 24:
+                return "#c5c5c5"
+            case 25:
+                return "#cecece"
+            case 26:
+                return "#d6d6d6"
+            case 27:
+                return "#dedede"
+            case 28:
+                return "#e6e6e6"
+            case 29:
+                return "#efefef"
+            case 30:
+                return "#f7f7f7"
+            case 31:
+                return "#ffffff"
+            default:
+                return "#ffffff"
+        }
+    }
 }
 
+//Main function
 let araucaria = new AraucariaEngine();
 
 araucaria.onUserCreate();
@@ -243,6 +396,3 @@ araucaria.onUserCreate();
 setInterval(() => {
     araucaria.onUserUpdate(0.05);
 }, 50)
-
-
-

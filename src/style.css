@@ -2,9 +2,11 @@ body {
     height: 98vh;
     width: 98vw;
     margin: 0;
+    background-color: #000;
 }
 
 #canvas {
     height: 100%;
     width: 100%;
+    background-color: #000;
 }
