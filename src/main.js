@@ -33,7 +33,7 @@ class AraucariaEngine {
             reader.onloadend = (e) => onloadEnd(e);
             reader.readAsText(file);
             const onloadEnd = (e) => {
-                if (event.target == null)
+                if (e.target == null)
                     return;
                 const content = reader.result;
                 this.loadFromObjectFile(content);
