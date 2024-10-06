@@ -47,7 +47,6 @@ class AraucariaEngine {
         context.translate(0.5, 0.5);
 
 
-        context.strokeStyle = 'white';
         context.lineWidth = 2;
 
         this.canvas = canvas;
@@ -58,7 +57,7 @@ class AraucariaEngine {
         
         this.theta = 0;
 
-        /*
+        
         window.ondragover = function(event) {
             event.preventDefault();
         }
@@ -77,17 +76,14 @@ class AraucariaEngine {
             reader.readAsText(file);
 
             const onloadEnd = (e: ProgressEvent<FileReader>) => {
-                if (event.target == null) return;
+                if (e.target == null) return;
 
                 const content: string = reader.result as string;
 
                 this.loadFromObjectFile(content)
             }
         }
-         */
     }
-
-
 
     onUserCreate(): boolean {
         this.createCube(this.meshCube);
@@ -149,7 +145,48 @@ class AraucariaEngine {
         cubeMesh.tris.push(triangle0, triangle1, triangle2, triangle3, triangle4, triangle5, triangle6, triangle7, triangle8, triangle9, triangle10, triangle11);
     }
 
+    loadFromObjectFile(content: string) {
+        this.meshCube.tris = new Array<triangle>();
 
+        let verts = new Array<vec3d>();
+        let lines = content.split('\n');
+
+        for (let line of lines) {
+            if (line.startsWith('v')) {
+                let v: vec3d = {x: 0, y: 0, z: 0};
+
+                line = line.substring(line.indexOf('v') + 2, line.length);
+
+                v.x = Number.parseFloat(line.substring(0, line.indexOf(' ')));
+                line = line.substring(line.indexOf(' ') + 1, line.length);
+
+                v.y = Number.parseFloat(line.substring(0, line.indexOf(' ')));
+                line = line.substring(line.indexOf(' ') + 1, line.length);
+
+                v.z = Number.parseFloat(line.substring(0));
+
+                verts.push(v);
+            } else if (line.startsWith('f')) {
+                let f: number[] = [];
+                let tris: triangle = {p: new Array<vec3d>()};
+
+                line = line.substring(line.indexOf('f') + 2, line.length);
+
+                f[0] = Number.parseFloat(line.substring(0, line.indexOf(' ')));
+                line = line.substring(line.indexOf(' ') + 1, line.length);
+
+                f[1] = Number.parseFloat(line.substring(0, line.indexOf(' ')));
+                line = line.substring(line.indexOf(' ') + 1, line.length);
+
+                f[2] = Number.parseFloat(line.substring(0));
+
+
+                this.populateTriangle(tris, verts[f[0] - 1], verts[f[1] - 1], verts[f[2] - 1]);
+
+                this.meshCube.tris.push(tris);
+            }
+        }
+    }
 
     onUserUpdate(elapsedTime: number): boolean {
         this.clearScreen();
@@ -173,6 +210,8 @@ class AraucariaEngine {
         matRotX.m[2][1] = -Math.sin(this.theta * 0.5);
         matRotX.m[2][2] = Math.cos(this.theta * 0.5);
         matRotX.m[3][3] = 1;
+
+        let vecTrianglesToRaster = new Array<triangle>();
 
         for (let i = 0; i < this.meshCube.tris.length; i++) {
             let tri: triangle = {p: [...this.meshCube.tris[i].p]},
@@ -198,9 +237,9 @@ class AraucariaEngine {
 
             //Offset into screen
             triTranslated.p = [...triRotatedZX.p];
-            triTranslated.p[0].z += 3;
-            triTranslated.p[1].z += 3;
-            triTranslated.p[2].z += 3;
+            triTranslated.p[0].z += 8;
+            triTranslated.p[1].z += 8;
+            triTranslated.p[2].z += 8;
 
             //Calculate normals
             let normal: vec3d, line1: vec3d, line2: vec3d;
@@ -258,7 +297,19 @@ class AraucariaEngine {
             triProjected.p[2].x *= (window.innerWidth);
             triProjected.p[2].y *= (window.innerHeight);
 
-            this.fillTriangle(triProjected);
+            vecTrianglesToRaster.push(triProjected);
+        }
+
+        vecTrianglesToRaster.sort((a, b) => {
+            let z1 = (a.p[0].z + a.p[1].z + a.p[2].z) / 3;
+            let z2 = (b.p[0].z + b.p[1].z + b.p[2].z) / 3;
+
+            return z2 - z1;
+        })
+
+
+        for (let i = 0; i < vecTrianglesToRaster.length; i++) {
+            this.fillTriangle(vecTrianglesToRaster[i]);
         }
 
         return true;
@@ -279,7 +330,7 @@ class AraucariaEngine {
     }
 
     clearScreen() {
-        this.context.clearRect(-960, -540, 1920 * 2, 1080 * 2);
+        this.context.clearRect(-1920, -1080, 1920 * 10, 1080 * 10);
     }
 
     private multiplyMatrixByVector(inputVector: vec3d, outputVector: vec3d, matrix: matrix4x4) {

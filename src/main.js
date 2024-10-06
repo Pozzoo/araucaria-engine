@@ -14,40 +14,31 @@ class AraucariaEngine {
         canvas.width = window.innerWidth * 2;
         canvas.height = window.innerHeight * 2;
         context.translate(0.5, 0.5);
-        context.strokeStyle = 'white';
         context.lineWidth = 2;
         this.canvas = canvas;
         this.context = context;
         this.meshCube = { tris: new Array() };
         this.matProj = { m: Array(4).fill(0).map(() => Array(4).fill(0)) };
         this.theta = 0;
-        /*
-        window.ondragover = function(event) {
+        window.ondragover = function (event) {
             event.preventDefault();
-        }
-
+        };
         window.ondrop = (event) => onDrop(event);
-
-        const onDrop = (event: DragEvent) => {
+        const onDrop = (event) => {
             event.preventDefault();
-
-            if (event.dataTransfer == null) return;
-
+            if (event.dataTransfer == null)
+                return;
             let file = event.dataTransfer.files[0];
             let reader = new FileReader();
-
             reader.onloadend = (e) => onloadEnd(e);
             reader.readAsText(file);
-
-            const onloadEnd = (e: ProgressEvent<FileReader>) => {
-                if (event.target == null) return;
-
-                const content: string = reader.result as string;
-
-                this.loadFromObjectFile(content)
-            }
-        }
-         */
+            const onloadEnd = (e) => {
+                if (event.target == null)
+                    return;
+                const content = reader.result;
+                this.loadFromObjectFile(content);
+            };
+        };
     }
     onUserCreate() {
         this.createCube(this.meshCube);
@@ -91,6 +82,35 @@ class AraucariaEngine {
         this.populateTriangle(triangle11, this.point101, this.point000, this.point100);
         cubeMesh.tris.push(triangle0, triangle1, triangle2, triangle3, triangle4, triangle5, triangle6, triangle7, triangle8, triangle9, triangle10, triangle11);
     }
+    loadFromObjectFile(content) {
+        this.meshCube.tris = new Array();
+        let verts = new Array();
+        let lines = content.split('\n');
+        for (let line of lines) {
+            if (line.startsWith('v')) {
+                let v = { x: 0, y: 0, z: 0 };
+                line = line.substring(line.indexOf('v') + 2, line.length);
+                v.x = Number.parseFloat(line.substring(0, line.indexOf(' ')));
+                line = line.substring(line.indexOf(' ') + 1, line.length);
+                v.y = Number.parseFloat(line.substring(0, line.indexOf(' ')));
+                line = line.substring(line.indexOf(' ') + 1, line.length);
+                v.z = Number.parseFloat(line.substring(0));
+                verts.push(v);
+            }
+            else if (line.startsWith('f')) {
+                let f = [];
+                let tris = { p: new Array() };
+                line = line.substring(line.indexOf('f') + 2, line.length);
+                f[0] = Number.parseFloat(line.substring(0, line.indexOf(' ')));
+                line = line.substring(line.indexOf(' ') + 1, line.length);
+                f[1] = Number.parseFloat(line.substring(0, line.indexOf(' ')));
+                line = line.substring(line.indexOf(' ') + 1, line.length);
+                f[2] = Number.parseFloat(line.substring(0));
+                this.populateTriangle(tris, verts[f[0] - 1], verts[f[1] - 1], verts[f[2] - 1]);
+                this.meshCube.tris.push(tris);
+            }
+        }
+    }
     onUserUpdate(elapsedTime) {
         this.clearScreen();
         let matRotZ, matRotX;
@@ -109,6 +129,7 @@ class AraucariaEngine {
         matRotX.m[2][1] = -Math.sin(this.theta * 0.5);
         matRotX.m[2][2] = Math.cos(this.theta * 0.5);
         matRotX.m[3][3] = 1;
+        let vecTrianglesToRaster = new Array();
         for (let i = 0; i < this.meshCube.tris.length; i++) {
             let tri = { p: [...this.meshCube.tris[i].p] }, triTranslated = { p: new Array }, triRotatedZ = { p: new Array }, triRotatedZX = { p: new Array }, triProjected = { p: new Array };
             this.initializeTriangle(triRotatedZ);
@@ -125,9 +146,9 @@ class AraucariaEngine {
             this.multiplyMatrixByVector(triRotatedZ.p[2], triRotatedZX.p[2], matRotX);
             //Offset into screen
             triTranslated.p = [...triRotatedZX.p];
-            triTranslated.p[0].z += 3;
-            triTranslated.p[1].z += 3;
-            triTranslated.p[2].z += 3;
+            triTranslated.p[0].z += 8;
+            triTranslated.p[1].z += 8;
+            triTranslated.p[2].z += 8;
             //Calculate normals
             let normal, line1, line2;
             normal = { x: 0, y: 0, z: 0 };
@@ -177,7 +198,15 @@ class AraucariaEngine {
             triProjected.p[1].y *= (window.innerHeight);
             triProjected.p[2].x *= (window.innerWidth);
             triProjected.p[2].y *= (window.innerHeight);
-            this.fillTriangle(triProjected);
+            vecTrianglesToRaster.push(triProjected);
+        }
+        vecTrianglesToRaster.sort((a, b) => {
+            let z1 = (a.p[0].z + a.p[1].z + a.p[2].z) / 3;
+            let z2 = (b.p[0].z + b.p[1].z + b.p[2].z) / 3;
+            return z2 - z1;
+        });
+        for (let i = 0; i < vecTrianglesToRaster.length; i++) {
+            this.fillTriangle(vecTrianglesToRaster[i]);
         }
         return true;
     }
@@ -193,7 +222,7 @@ class AraucariaEngine {
         this.context.fill();
     }
     clearScreen() {
-        this.context.clearRect(-960, -540, 1920 * 2, 1080 * 2);
+        this.context.clearRect(-1920, -1080, 1920 * 10, 1080 * 10);
     }
     multiplyMatrixByVector(inputVector, outputVector, matrix) {
         let x, y, z, w;
