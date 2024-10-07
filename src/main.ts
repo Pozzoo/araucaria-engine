@@ -1,7 +1,8 @@
 interface vec3d {
     x: number,
     y: number,
-    z: number;
+    z: number,
+    w: number
 }
 
 interface triangle {
@@ -23,19 +24,14 @@ class AraucariaEngine {
 
     private readonly meshCube: mesh
 
-    private readonly matProj: matrix4x4;
+    private matProj: matrix4x4;
     private theta: number;
 
-    private readonly vCamera: vec3d = {x: 0, y: 0, z: 0};
+    private vCamera: vec3d = this.initializeVec3d();
+    private vLookDir: vec3d = this.initializeVec3d();
+    private fYaw: number = 0;
 
-    private readonly point000: vec3d = {x: 0, y: 0, z: 0};
-    private readonly point001: vec3d = {x: 0, y: 0, z: 1};
-    private readonly point010: vec3d = {x: 0, y: 1, z: 0};
-    private readonly point011: vec3d = {x: 0, y: 1, z: 1};
-    private readonly point100: vec3d = {x: 1, y: 0, z: 0};
-    private readonly point101: vec3d = {x: 1, y: 0, z: 1};
-    private readonly point110: vec3d = {x: 1, y: 1, z: 0};
-    private readonly point111: vec3d = {x: 1, y: 1, z: 1};
+    private showWireframe = false;
 
     constructor() {
         let canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -45,7 +41,6 @@ class AraucariaEngine {
         canvas.height = window.innerHeight * 2;
 
         context.translate(0.5, 0.5);
-
 
         context.lineWidth = 2;
 
@@ -86,63 +81,254 @@ class AraucariaEngine {
     }
 
     onUserCreate(): boolean {
-        this.createCube(this.meshCube);
-
         let fNear = 0.1;
         let fFar = 1000;
         let fFov = 90;
         let fAspectRatio = window.innerHeight / window.innerWidth;
-        let fFovRad = 1 / Math.tan(fFov * 0.5 / 180 * Math.PI);
 
+        this.matProj = this.makeProjectionMatrix(fFov, fAspectRatio, fNear, fFar);
 
-        this.matProj.m[0][0] = fAspectRatio * fFovRad;
-        this.matProj.m[1][1] = fFovRad;
-        this.matProj.m[2][2] = fFar / (fFar - fNear);
-        this.matProj.m[3][2] = (-fFar * fNear) / (fFar - fNear);
-        this.matProj.m[2][3] = 1;
-        this.matProj.m[3][3] = 0;
+        //Load teapot
+        fetch("./assets/teapot.obj")
+            .then((res) => res.text())
+            .then((text) => {
+                this.loadFromObjectFile(text);
+            })
+            .catch((e) => console.error(e));
 
         return true;
     }
 
-    createCube(cubeMesh: mesh) {
-        let triangle0: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle0, this.point000, this.point010, this.point110);
+    onUserUpdate(elapsedTime: number): boolean {
+        this.clearScreen();
 
-        let triangle1: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle1, this.point000, this.point110, this.point100);
+        let vForward = this.vectorMul(this.vLookDir, 8 * elapsedTime);
 
-        let triangle2: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle2, this.point100, this.point110, this.point111);
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowUp") {
 
-        let triangle3: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle3, this.point100, this.point111, this.point101);
+            } else if (e.key === "ArrowDown") {
+            } else if (e.key === "ArrowLeft") {
+            } else if (e.key === "ArrowRight") {
+            } else if (e.key === "a") {
+            } else if (e.key === "d") {
+            } else if (e.key === "w") {
+            } else if (e.key === "s") {
+            }
 
-        let triangle4: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle4, this.point101, this.point111, this.point011);
+            switch (e.key) {
+                case "ArrowUp":
+                    this.vCamera.y += 8 * elapsedTime;
+                    break;
+                case "ArrowDown":
+                    this.vCamera.y -= 8 * elapsedTime;
+                    break;
+                case "ArrowLeft":
+                    this.vCamera.x += 8 * elapsedTime;
+                    break;
+                case "ArrowRight":
+                    this.vCamera.x -= 8 * elapsedTime;
+                    break;
+                case "a":
+                    this.fYaw -= 2 * elapsedTime;
+                    break;
+                case "d":
+                    this.fYaw += 2 * elapsedTime;
+                    break;
+                case "w":
+                    this.vCamera = this.vectorAdd(this.vCamera, vForward);
+                    break;
+                case "s":
+                    this.vCamera = this.vectorSub(this.vCamera, vForward);
+                    break;
+                default:
+                    return;
+            }
+        }
 
-        let triangle5: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle5, this.point101, this.point011, this.point001);
+        document.onkeydown = (e) => onKeyDown(e);
 
-        let triangle6: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle6, this.point001, this.point011, this.point010);
+        let matRotZ: matrix4x4, matRotX: matrix4x4, matTrans: matrix4x4, matWorld: matrix4x4;
+        //this.theta += elapsedTime;
 
-        let triangle7: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle7, this.point001, this.point010, this.point000);
+        matRotX = this.makeRotationMatrixX(this.theta * 5);
+        matRotZ = this.makeRotationMatrixZ(this.theta);
 
-        let triangle8: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle8, this.point010, this.point011, this.point111);
+        matTrans = this.makeTranslationMatrix(0, 0, 5);
 
-        let triangle9: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle9, this.point010, this.point111, this.point110);
+        matWorld = this.multiplyMatrixByMatrix(matRotZ, matRotX);
+        matWorld = this.multiplyMatrixByMatrix(matWorld, matTrans);
 
-        let triangle10: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle10, this.point101, this.point001, this.point000);
+        let vecTrianglesToRaster = new Array<triangle>();
 
-        let triangle11: triangle = {p: new Array<vec3d>()};
-        this.populateTriangle(triangle11, this.point101, this.point000, this.point100);
+        let vUp: vec3d = {x: 0, y: 1, z: 0, w: 1};
+        let vTarget: vec3d = {x: 0, y: 0, z: 1, w: 1};
+        let matCameraRotate: matrix4x4 = this.makeRotationMatrixY(this.fYaw);
+        this.vLookDir = this.multiplyMatrixByVector(matCameraRotate, vTarget);
+        vTarget = this.vectorAdd(this.vCamera, this.vLookDir);
 
-        cubeMesh.tris.push(triangle0, triangle1, triangle2, triangle3, triangle4, triangle5, triangle6, triangle7, triangle8, triangle9, triangle10, triangle11);
+        let matCamera: matrix4x4 = this.makePointAtMatrix(this.vCamera, vTarget, vUp);
+        let matView: matrix4x4 = this.quickInverseMatrix(matCamera);
+
+        for (let i = 0; i < this.meshCube.tris.length; i++) {
+            let tri: triangle = {p: [...this.meshCube.tris[i].p]},
+                triProjected: triangle = {p: new Array<vec3d>},
+                triTransformed: triangle = {p: new Array<vec3d>},
+                triViewed: triangle = {p: new Array<vec3d>};
+
+            triProjected = this.initializeTriangle();
+            triTransformed = this.initializeTriangle();
+
+            triTransformed.p[0] = this.multiplyMatrixByVector(matWorld, tri.p[0]);
+            triTransformed.p[1] = this.multiplyMatrixByVector(matWorld, tri.p[1]);
+            triTransformed.p[2] = this.multiplyMatrixByVector(matWorld, tri.p[2]);
+
+            //Calculate normals
+            let normal: vec3d, line1: vec3d, line2: vec3d;
+
+            line1 = this.vectorSub(triTransformed.p[1], triTransformed.p[0]);
+            line2 = this.vectorSub(triTransformed.p[2], triTransformed.p[0]);
+
+            normal = this.vectorCrossProduct(line1, line2);
+
+            normal = this.vectorNormalize(normal);
+
+            let vCameraRay = this.vectorSub(triTransformed.p[0], this.vCamera);
+
+            //Cull not visible triangles
+            if (this.vectorDotProduct(normal, vCameraRay) > 0) continue;
+
+            //Illumination
+            let lightDirection: vec3d = {x: 0, y: 1, z: -1, w: 1};
+            lightDirection = this.vectorNormalize(lightDirection);
+
+            let lightDotProduct: number = Math.max(0.1, this.vectorDotProduct(lightDirection, normal));
+            triTransformed.colour = this.defineShadeColour(lightDotProduct);
+
+            //Convert World Space into View Space
+            triViewed.p[0] = this.multiplyMatrixByVector(matView, triTransformed.p[0]);
+            triViewed.p[1] = this.multiplyMatrixByVector(matView, triTransformed.p[1]);
+            triViewed.p[2] = this.multiplyMatrixByVector(matView, triTransformed.p[2]);
+
+            let nClippedTriangles = 0;
+            let clipped: triangle[] = [this.initializeTriangle(), this.initializeTriangle()]
+
+            let vec1: vec3d = {x: 0, y: 0, z: 0.15, w: 1};
+            let vec2: vec3d = {x: 0, y: 0, z: 1, w: 1};
+            let res = this.triangleClipAgainstPlane(vec1, vec2, triViewed);
+
+            nClippedTriangles = res.n;
+            clipped[0] = res.outTri1;
+            clipped[1] = res.outTri2;
+
+            if (nClippedTriangles === -1) {
+                console.log("clipping not working!")
+                continue;
+            }
+
+            for (let j = 0; j < nClippedTriangles; j++) {
+                //Translate
+                triProjected.p[0] = this.multiplyMatrixByVector(this.matProj, clipped[j].p[0]);
+                triProjected.p[1] = this.multiplyMatrixByVector(this.matProj, clipped[j].p[1]);
+                triProjected.p[2] = this.multiplyMatrixByVector(this.matProj, clipped[j].p[2]);
+                triProjected.colour = triTransformed.colour;
+
+                triProjected.p[0] = this.vectorDiv(triProjected.p[0], triProjected.p[0].w);
+                triProjected.p[1] = this.vectorDiv(triProjected.p[1], triProjected.p[1].w);
+                triProjected.p[2] = this.vectorDiv(triProjected.p[2], triProjected.p[2].w);
+
+                //Invert X and Y
+                triProjected.p[0].x *= -1;
+                triProjected.p[1].x *= -1;
+                triProjected.p[2].x *= -1;
+                triProjected.p[0].y *= -1;
+                triProjected.p[1].y *= -1;
+                triProjected.p[2].y *= -1;
+
+                //Scale to view and offset
+                let vOffsetView: vec3d = {x: 1, y: 1, z: 0, w: 1}
+                triProjected.p[0] = this.vectorAdd(triProjected.p[0], vOffsetView);
+                triProjected.p[1] = this.vectorAdd(triProjected.p[1], vOffsetView);
+                triProjected.p[2] = this.vectorAdd(triProjected.p[2], vOffsetView);
+
+                triProjected.p[0].x *= (window.innerWidth);
+                triProjected.p[0].y *= (window.innerHeight);
+
+                triProjected.p[1].x *= (window.innerWidth);
+                triProjected.p[1].y *= (window.innerHeight);
+
+                triProjected.p[2].x *= (window.innerWidth);
+                triProjected.p[2].y *= (window.innerHeight);
+
+                vecTrianglesToRaster.push(triProjected);
+            }
+        }
+
+        vecTrianglesToRaster.sort((a, b) => {
+            let z1 = (a.p[0].z + a.p[1].z + a.p[2].z) / 3;
+            let z2 = (b.p[0].z + b.p[1].z + b.p[2].z) / 3;
+
+            return z2 - z1;
+        })
+
+        for (let i = 0; i < vecTrianglesToRaster.length; i++) {
+            let triToRaster = vecTrianglesToRaster[i];
+
+            let clipped: triangle[] = [this.initializeTriangle(), this.initializeTriangle()];
+            let triangleList: Array<triangle> = new Array<triangle>();
+
+            triangleList.push(triToRaster);
+            let nNewTriangles = 1;
+
+            for (let j = 0; j < 4; j++) {
+                let nTrisToAdd = 0;
+                while (nTrisToAdd > 0) {
+                    let test: triangle = triangleList.pop()!;
+                    nNewTriangles--;
+
+                    let res1;
+
+                    switch (j) {
+                        case 0:
+                            res1 = this.triangleClipAgainstPlane({x: 0, y: 0, z: 0, w: 1}, {x: 0, y: 1, z: 0, w: 1}, test);
+                            nTrisToAdd = res1.n;
+                            clipped[0] = res1.outTri1;
+                            clipped[1] = res1.outTri2;
+                            break;
+                        case 1:
+                            res1 = this.triangleClipAgainstPlane({x: 0, y: window.innerHeight - 1, z: 0, w: 1}, {x: 0, y: -1, z: 0, w: 1}, test);
+                            nTrisToAdd = res1.n;
+                            clipped[0] = res1.outTri1;
+                            clipped[1] = res1.outTri2;
+                            break;
+                        case 2:
+                            res1 = this.triangleClipAgainstPlane({x: 0, y: 0, z: 0, w: 1}, {x: 1, y: 1, z: 0, w: 1}, test);
+                            nTrisToAdd = res1.n;
+                            clipped[0] = res1.outTri1;
+                            clipped[1] = res1.outTri2;
+                            break;
+                        case 3:
+                            res1 = this.triangleClipAgainstPlane({x: window.innerWidth - 1, y: 0, z: 0, w: 1}, {x: -1, y: 1, z: 0, w: 1}, test);
+                            nTrisToAdd = res1.n;
+                            clipped[0] = res1.outTri1;
+                            clipped[1] = res1.outTri2;
+                            break;
+                    }
+
+                    for (let k = 0; k < nTrisToAdd; k++) {
+                        triangleList.push(clipped[k]);
+                    }
+                }
+
+                nNewTriangles = triangleList.length;
+            }
+
+            for (let j = 0; j < triangleList.length; j++) {
+                this.fillTriangle(triangleList[j]);
+            }
+        }
+
+        return true;
     }
 
     loadFromObjectFile(content: string) {
@@ -153,7 +339,7 @@ class AraucariaEngine {
 
         for (let line of lines) {
             if (line.startsWith('v')) {
-                let v: vec3d = {x: 0, y: 0, z: 0};
+                let v: vec3d = this.initializeVec3d();
 
                 line = line.substring(line.indexOf('v') + 2, line.length);
 
@@ -188,174 +374,273 @@ class AraucariaEngine {
         }
     }
 
-    onUserUpdate(elapsedTime: number): boolean {
-        this.clearScreen();
+    private make4x4Matrix() {
+        let matrix: matrix4x4 = {m: new Array(4).fill(0).map(() => Array(4).fill(0))}
+        return matrix;
+    }
 
-        let matRotZ: matrix4x4, matRotX: matrix4x4;
-        this.theta += elapsedTime;
-
-        matRotX = {m : Array(4).fill(0).map(() => Array(4).fill(0))}
-        matRotZ = {m : Array(4).fill(0).map(() => Array(4).fill(0))}
-
-        matRotZ.m[0][0] = Math.cos(this.theta);
-        matRotZ.m[0][1] = Math.sin(this.theta);
-        matRotZ.m[1][0] = -Math.sin(this.theta);
-        matRotZ.m[1][1] = Math.cos(this.theta);
-        matRotZ.m[2][2] = 1;
-        matRotZ.m[3][3] = 1;
-
-        matRotX.m[0][0] = 1;
-        matRotX.m[1][1] = Math.cos(this.theta * 0.5);
-        matRotX.m[1][2] = Math.sin(this.theta * 0.5);
-        matRotX.m[2][1] = -Math.sin(this.theta * 0.5);
-        matRotX.m[2][2] = Math.cos(this.theta * 0.5);
-        matRotX.m[3][3] = 1;
-
-        let vecTrianglesToRaster = new Array<triangle>();
-
-        for (let i = 0; i < this.meshCube.tris.length; i++) {
-            let tri: triangle = {p: [...this.meshCube.tris[i].p]},
-                triTranslated: triangle = {p: new Array<vec3d>},
-                triRotatedZ: triangle = {p: new Array<vec3d>},
-                triRotatedZX: triangle = {p: new Array<vec3d>},
-                triProjected: triangle = {p: new Array<vec3d>};
-
-            this.initializeTriangle(triRotatedZ);
-            this.initializeTriangle(triRotatedZX);
-            this.initializeTriangle(triTranslated);
-            this.initializeTriangle(triProjected);
-
-            //Rotate on Z axis
-            this.multiplyMatrixByVector(tri.p[0], triRotatedZ.p[0], matRotZ);
-            this.multiplyMatrixByVector(tri.p[1], triRotatedZ.p[1], matRotZ);
-            this.multiplyMatrixByVector(tri.p[2], triRotatedZ.p[2], matRotZ);
-
-            //Rotate on X axis
-            this.multiplyMatrixByVector(triRotatedZ.p[0], triRotatedZX.p[0], matRotX);
-            this.multiplyMatrixByVector(triRotatedZ.p[1], triRotatedZX.p[1], matRotX);
-            this.multiplyMatrixByVector(triRotatedZ.p[2], triRotatedZX.p[2], matRotX);
-
-            //Offset into screen
-            triTranslated.p = [...triRotatedZX.p];
-            triTranslated.p[0].z += 8;
-            triTranslated.p[1].z += 8;
-            triTranslated.p[2].z += 8;
-
-            //Calculate normals
-            let normal: vec3d, line1: vec3d, line2: vec3d;
-            normal = {x: 0, y: 0, z: 0};
-            line1 = {x: 0, y: 0, z: 0};
-            line2 = {x: 0, y: 0, z: 0};
-
-            line1.x = triTranslated.p[1].x - triTranslated.p[0].x;
-            line1.y = triTranslated.p[1].y - triTranslated.p[0].y;
-            line1.z = triTranslated.p[1].z - triTranslated.p[0].z;
-
-            line2.x = triTranslated.p[2].x - triTranslated.p[0].x;
-            line2.y = triTranslated.p[2].y - triTranslated.p[0].y;
-            line2.z = triTranslated.p[2].z - triTranslated.p[0].z;
-
-            normal.x = line1.y * line2.z - line1.z * line2.y;
-            normal.y = line1.z * line2.x - line1.x * line2.z;
-            normal.z = line1.x * line2.y - line1.y * line2.x;
-
-            let normalLenght: number = Math.sqrt(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
-            normal.x /= normalLenght; normal.y /= normalLenght; normal.z /= normalLenght;
-
-            //Cull not visible triangles
-            if (normal.x  * (triTranslated.p[0].x - this.vCamera.x) +
-                normal.y  * (triTranslated.p[0].y - this.vCamera.y) +
-                normal.z  * (triTranslated.p[0].z - this.vCamera.z) > 0)
-            continue;
-
-            //Illumination
-            let lightDirection: vec3d = {x: 0, y: 0, z: -1};
-
-            let lightDirectionNormal: number = Math.sqrt(lightDirection.x*lightDirection.x + lightDirection.y*lightDirection.y + lightDirection.z*lightDirection.z);
-            lightDirection.x /= lightDirectionNormal; lightDirection.y /= lightDirectionNormal; lightDirection.z /= lightDirectionNormal;
-
-            let lightDotProduct: number = normal.x * lightDirection.x + normal.y * lightDirection.y + normal.z * lightDirection.z;
-            triTranslated.colour = this.defineShadeColour(lightDotProduct);
-
-            //Translate
-            this.multiplyMatrixByVector(triTranslated.p[0], triProjected.p[0], this.matProj);
-            this.multiplyMatrixByVector(triTranslated.p[1], triProjected.p[1], this.matProj);
-            this.multiplyMatrixByVector(triTranslated.p[2], triProjected.p[2], this.matProj);
-            triProjected.colour = triTranslated.colour;
-
-            //Scale to view
-            triProjected.p[0].x += 1; triProjected.p[0].y += 1;
-            triProjected.p[1].x += 1; triProjected.p[1].y += 1;
-            triProjected.p[2].x += 1; triProjected.p[2].y += 1;
-
-            triProjected.p[0].x *= (window.innerWidth);
-            triProjected.p[0].y *= (window.innerHeight);
-
-            triProjected.p[1].x *= (window.innerWidth);
-            triProjected.p[1].y *= (window.innerHeight);
-
-            triProjected.p[2].x *= (window.innerWidth);
-            triProjected.p[2].y *= (window.innerHeight);
-
-            vecTrianglesToRaster.push(triProjected);
+    private multiplyMatrixByVector(matrix: matrix4x4, vector: vec3d) {
+        let res: vec3d = {
+            x: vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + vector.w * matrix.m[3][0],
+            y: vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + vector.w * matrix.m[3][1],
+            z: vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + vector.w * matrix.m[3][2],
+            w: vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + vector.w * matrix.m[3][3]
         }
 
-        vecTrianglesToRaster.sort((a, b) => {
-            let z1 = (a.p[0].z + a.p[1].z + a.p[2].z) / 3;
-            let z2 = (b.p[0].z + b.p[1].z + b.p[2].z) / 3;
+        return res;
+    }
 
-            return z2 - z1;
-        })
+    private makeIdentityMatrix() {
+        let matrix: matrix4x4 = this.make4x4Matrix();
 
+        matrix.m[0][0] = 1;
+        matrix.m[1][1] = 1;
+        matrix.m[2][2] = 1;
+        matrix.m[3][3] = 1;
 
-        for (let i = 0; i < vecTrianglesToRaster.length; i++) {
-            this.fillTriangle(vecTrianglesToRaster[i]);
+        return matrix;
+    }
+
+    private makeRotationMatrixX(angleRad: number) {
+        let matrix: matrix4x4 = this.make4x4Matrix();
+        matrix.m[0][0] = 1;
+        matrix.m[1][1] = Math.cos(angleRad);
+        matrix.m[1][2] = Math.sin(angleRad);
+        matrix.m[2][1] = -Math.sin(angleRad);
+        matrix.m[2][2] = Math.cos(angleRad);
+        matrix.m[3][3] = 1;
+        return matrix;
+    }
+
+    private makeRotationMatrixY(angleRad: number) {
+        let matrix: matrix4x4 = this.make4x4Matrix();
+        matrix.m[0][0] = Math.cos(angleRad);
+        matrix.m[0][2] = Math.sin(angleRad);
+        matrix.m[2][0] = -Math.sin(angleRad);
+        matrix.m[1][1] = 1.0;
+        matrix.m[2][2] = Math.cos(angleRad);
+        matrix.m[3][3] = 1.0;
+        return matrix;
+    }
+
+    private makeRotationMatrixZ(angleRad: number) {
+        let matrix: matrix4x4 = this.make4x4Matrix();
+        matrix.m[0][0] = Math.cos(angleRad);
+        matrix.m[0][1] = Math.sin(angleRad);
+        matrix.m[1][0] = -Math.sin(angleRad);
+        matrix.m[1][1] = Math.cos(angleRad);
+        matrix.m[2][2] = 1;
+        matrix.m[3][3] = 1;
+        return matrix;
+    }
+
+    private makeTranslationMatrix(x:number, y:number, z:number) {
+        let matrix: matrix4x4 = this.makeIdentityMatrix();
+        matrix.m[3][0] = x;
+        matrix.m[3][1] = y;
+        matrix.m[3][2] = z;
+        return matrix;
+    }
+
+    private makeProjectionMatrix(fovDegrees: number, aspectRatio: number, fNear: number, fFar: number) {
+        let fovRad = 1.0 / Math.tan(fovDegrees * 0.5 / 180.0 * 3.14159);
+
+        let matrix: matrix4x4 = this.make4x4Matrix();
+        matrix.m[0][0] = aspectRatio * fovRad;
+        matrix.m[1][1] = fovRad;
+        matrix.m[2][2] = fFar / (fFar - fNear);
+        matrix.m[3][2] = (-fFar * fNear) / (fFar - fNear);
+        matrix.m[2][3] = 1;
+        matrix.m[3][3] = 0;
+        return matrix;
+    }
+
+    private multiplyMatrixByMatrix(m1: matrix4x4, m2: matrix4x4) {
+        let res: matrix4x4 = this.make4x4Matrix();
+        for (let c = 0; c < 4; c++)
+            for (let r = 0; r < 4; r++)
+                res.m[r][c] = m1.m[r][0] * m2.m[0][c] + m1.m[r][1] * m2.m[1][c] + m1.m[r][2] * m2.m[2][c] + m1.m[r][3] * m2.m[3][c];
+        return res;
+    }
+
+    private makePointAtMatrix(pos: vec3d, target: vec3d, up: vec3d) {
+
+        //Calculate forward direction
+        let newForward = this.vectorSub(target, pos);
+        newForward = this.vectorNormalize(newForward);
+
+        //Calculate new up direction
+        let a = this.vectorMul(newForward, this.vectorDotProduct(up, newForward));
+        let newUp = this.vectorSub(up, a);
+        newUp = this.vectorNormalize(newUp);
+
+        //Calculate new right direction
+        let newRight = this.vectorCrossProduct(newUp, newForward);
+
+        //Construct Dimensioning and Translation matrix
+        let matrix = this.make4x4Matrix();
+        matrix.m[0][0] = newRight.x;	matrix.m[0][1] = newRight.y;	matrix.m[0][2] = newRight.z;	matrix.m[0][3] = 0;
+        matrix.m[1][0] = newUp.x;		matrix.m[1][1] = newUp.y;		matrix.m[1][2] = newUp.z;		matrix.m[1][3] = 0;
+        matrix.m[2][0] = newForward.x;	matrix.m[2][1] = newForward.y;	matrix.m[2][2] = newForward.z;	matrix.m[2][3] = 0;
+        matrix.m[3][0] = pos.x;			matrix.m[3][1] = pos.y;			matrix.m[3][2] = pos.z;			matrix.m[3][3] = 1;
+        return matrix;
+    }
+
+    private quickInverseMatrix(matrix: matrix4x4) {
+        let res: matrix4x4 = this.make4x4Matrix();
+
+        res.m[0][0] = matrix.m[0][0]; res.m[0][1] = matrix.m[1][0]; res.m[0][2] = matrix.m[2][0]; res.m[0][3] = 0;
+        res.m[1][0] = matrix.m[0][1]; res.m[1][1] = matrix.m[1][1]; res.m[1][2] = matrix.m[2][1]; res.m[1][3] = 0;
+        res.m[2][0] = matrix.m[0][2]; res.m[2][1] = matrix.m[1][2]; res.m[2][2] = matrix.m[2][2]; res.m[2][3] = 0;
+        res.m[3][0] = -(matrix.m[3][0] * res.m[0][0] + matrix.m[3][1] * res.m[1][0] + matrix.m[3][2] * res.m[2][0]);
+        res.m[3][1] = -(matrix.m[3][0] * res.m[0][1] + matrix.m[3][1] * res.m[1][1] + matrix.m[3][2] * res.m[2][1]);
+        res.m[3][2] = -(matrix.m[3][0] * res.m[0][2] + matrix.m[3][1] * res.m[1][2] + matrix.m[3][2] * res.m[2][2]);
+        res.m[3][3] = 1;
+        return res;
+    }
+
+    private vectorAdd(v1: vec3d, v2: vec3d) {
+        let res: vec3d = {x: v1.x + v2.x, y: v1.y + v2.y, z: v1.z + v2.z, w: 1};
+        return res;
+    }
+
+    private vectorSub(v1: vec3d, v2: vec3d) {
+        let res: vec3d = {x: v1.x - v2.x, y: v1.y - v2.y, z: v1.z - v2.z, w: 1};
+        return res;
+    }
+
+    private vectorMul(v1: vec3d, k: number) {
+        let res: vec3d = {x: v1.x * k, y: v1.y * k, z: v1.z * k, w: 1};
+        return res;
+    }
+
+    private vectorDiv(v1: vec3d, k: number) {
+        let res: vec3d = {x: v1.x / k, y: v1.y / k, z: v1.z / k, w: 1};
+        return res;
+    }
+
+    private vectorDotProduct(v1: vec3d, v2: vec3d) {
+        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+    }
+
+    private vectorLength(v1: vec3d) {
+        return Math.sqrt(this.vectorDotProduct(v1, v1));
+    }
+
+    private vectorNormalize(v1: vec3d) {
+        let length = this.vectorLength(v1);
+        let res: vec3d = {x: v1.x / length, y: v1.y / length, z: v1.z / length, w: 1};
+        return res;
+    }
+
+    private vectorCrossProduct(v1: vec3d, v2: vec3d) {
+        let res: vec3d = {
+            x: v1.y * v2.z - v1.z * v2.y,
+            y: v1.z * v2.x - v1.x * v2.z,
+            z: v1.x * v2.y - v1.y * v2.x,
+            w: 1
         }
 
-        return true;
+        return res;
     }
 
-    fillTriangle(triangle: triangle) {
-        this.context.strokeStyle = triangle.colour!;
+    private vectorIntersectPlane(planeP: vec3d, planeN: vec3d, lineStart: vec3d, lineEnd: vec3d) {
+        planeN = this.vectorNormalize(planeN);
+        let planeD = -this.vectorDotProduct(planeN, planeP);
+        let ad = this.vectorDotProduct(lineStart, planeN);
+        let bd = this.vectorDotProduct(lineEnd, planeN);
+        let t = (-planeD - ad) / (bd - ad);
+        let lineStartToEnd: vec3d =  this.vectorSub(lineEnd, lineStart);
+        let lineToIntersect: vec3d =  this.vectorMul(lineStartToEnd, t);
 
-        this.context.beginPath();
-        this.context.moveTo(triangle.p[0].x, triangle.p[0].y);
-        this.context.lineTo(triangle.p[1].x, triangle.p[1].y);
-        this.context.lineTo(triangle.p[2].x, triangle.p[2].y);
-        this.context.stroke();
-        this.context.closePath();
-
-        this.context.fillStyle = triangle.colour!;
-        this.context.fill();
+        return this.vectorAdd(lineStart, lineToIntersect);
     }
 
-    clearScreen() {
-        this.context.clearRect(-1920, -1080, 1920 * 10, 1080 * 10);
-    }
+    private triangleClipAgainstPlane(planeP: vec3d, planeN: vec3d, inTri: triangle) {
+        let outTri1 = this.initializeTriangle()
+        let outTri2 = this.initializeTriangle()
 
-    private multiplyMatrixByVector(inputVector: vec3d, outputVector: vec3d, matrix: matrix4x4) {
-        let x, y, z, w : number;
 
-        x = inputVector.x * matrix.m[0][0] + inputVector.y * matrix.m[1][0] + inputVector.z * matrix.m[2][0] + matrix.m[3][0];
-        y = inputVector.x * matrix.m[0][1] + inputVector.y * matrix.m[1][1] + inputVector.z * matrix.m[2][1] + matrix.m[3][1];
-        z = inputVector.x * matrix.m[0][2] + inputVector.y * matrix.m[1][2] + inputVector.z * matrix.m[2][2] + matrix.m[3][2];
-        w = inputVector.x * matrix.m[0][3] + inputVector.y * matrix.m[1][3] + inputVector.z * matrix.m[2][3] + matrix.m[3][3];
+        planeN = this.vectorNormalize(planeN);
 
-        if (w != 0) {
-            x = x / w;
-            y = y / w;
-            z = z / w;
+        const dist = (p: vec3d) => {
+            return (planeN.x * p.x + planeN.y * p.y + planeN.z * p.z - this.vectorDotProduct(planeN, planeP));
         }
 
-        outputVector.x = x;
-        outputVector.y = y;
-        outputVector.z = z;
+        let insidePoints: vec3d[] = [this.initializeVec3d(), this.initializeVec3d(), this.initializeVec3d()];
+        let outsidePoints: vec3d[] = [this.initializeVec3d(), this.initializeVec3d(), this.initializeVec3d()];
+
+        let nInsidePointsCount = 0, nOutsidePointsCount = 0;
+
+        let d0 = dist(inTri.p[0]);
+        let d1 = dist(inTri.p[1]);
+        let d2 = dist(inTri.p[2]);
+
+        if (d0 >= 0)
+            insidePoints[nInsidePointsCount++] = inTri.p[0];
+        else
+            outsidePoints[nOutsidePointsCount++] = inTri.p[0];
+
+        if (d1 >= 0)
+            insidePoints[nInsidePointsCount++] = inTri.p[1];
+        else
+            outsidePoints[nOutsidePointsCount++] = inTri.p[1];
+
+        if (d2 >= 0)
+            insidePoints[nInsidePointsCount++] = inTri.p[2];
+        else
+            outsidePoints[nOutsidePointsCount++] = inTri.p[2];
+
+
+        if (nInsidePointsCount === 0) return {n: 0, outTri1, outTri2};
+
+        if (nInsidePointsCount === 3) {
+            outTri1 = inTri;
+            return {n: 1, outTri1, outTri2};
+        }
+
+        if (nInsidePointsCount == 1 && nOutsidePointsCount == 2) {
+            outTri1.colour = inTri.colour;
+
+            outTri1.p[0] = insidePoints[0];
+            outTri1.p[1] = this.vectorIntersectPlane(planeP, planeN, insidePoints[0], outsidePoints[1]);
+            outTri1.p[2] = this.vectorIntersectPlane(planeP, planeN, insidePoints[0], outsidePoints[2]);
+
+            return {n: 1, outTri1, outTri2};
+        }
+
+        if (nInsidePointsCount == 2 && nOutsidePointsCount == 1) {
+            outTri1.colour = inTri.colour;
+            outTri2.colour = inTri.colour;
+
+            outTri1.p[0] = insidePoints[0];
+            outTri1.p[1] = insidePoints[1];
+            outTri1.p[2] = this.vectorIntersectPlane(planeP, planeN, insidePoints[0], outsidePoints[0]);
+
+            outTri2.p[0] = insidePoints[0];
+            outTri2.p[1] = insidePoints[1];
+            outTri2.p[2] = this.vectorIntersectPlane(planeP, planeN, insidePoints[1], outsidePoints[0]);
+
+            return {n: 2, outTri1, outTri2};
+        }
+
+        return {n: -1, outTri1, outTri2};
     }
 
-    private initializeTriangle(triangle: triangle) {
-        triangle.p[0] = {x: 0, y: 0, z: 0};
-        triangle.p[1] = {x: 0, y: 0, z: 0};
-        triangle.p[2] = {x: 0, y: 0, z: 0};
+    private initializeVec3d() {
+        let vec: vec3d = {x: 0, y: 0, z: 0, w: 1}
+
+        return {...vec};
+    }
+
+    private initializeTriangle() {
+        let triangle: triangle = {p: new Array<vec3d>()};
+
+        triangle.p[0] = this.initializeVec3d();
+        triangle.p[1] = this.initializeVec3d();
+        triangle.p[2] = this.initializeVec3d();
+
+        return triangle;
     }
 
     private populateTriangle(triangle: triangle, vector1: vec3d, vector2: vec3d, vector3: vec3d) {
@@ -436,6 +721,30 @@ class AraucariaEngine {
                 return "#ffffff"
         }
     }
+
+    fillTriangle(triangle: triangle) {
+        this.context.strokeStyle = (this.showWireframe ? "black" : triangle.colour!);
+        this.context.lineWidth = 3;
+
+        this.context.beginPath();
+        this.context.moveTo(triangle.p[0].x, triangle.p[0].y);
+        this.context.lineTo(triangle.p[1].x, triangle.p[1].y);
+        this.context.lineTo(triangle.p[2].x, triangle.p[2].y);
+        this.context.lineTo(triangle.p[0].x, triangle.p[0].y);
+        this.context.stroke();
+        this.context.closePath();
+
+        this.context.fillStyle = triangle.colour!;
+        this.context.fill();
+    }
+
+    clearScreen() {
+        this.context.clearRect(-1920, -1080, 1920 * 10, 1080 * 10);
+    }
+
+    toggleWireframe() {
+        this.showWireframe = !this.showWireframe;
+    }
 }
 
 //Main function
@@ -445,5 +754,5 @@ araucaria.onUserCreate();
 //araucaria.onUserUpdate(0.01);
 
 setInterval(() => {
-    araucaria.onUserUpdate(0.05);
-}, 50)
+    araucaria.onUserUpdate(0.0333);
+}, 33.3)
