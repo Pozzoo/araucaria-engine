@@ -12,3 +12,5 @@
   * S : moves back
   * A : looks left
   * D : looks right
+
+  #### Drag and drop .obj files to load
