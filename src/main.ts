@@ -105,17 +105,6 @@ class AraucariaEngine {
         let vForward = this.vectorMul(this.vLookDir, 8 * elapsedTime);
 
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "ArrowUp") {
-
-            } else if (e.key === "ArrowDown") {
-            } else if (e.key === "ArrowLeft") {
-            } else if (e.key === "ArrowRight") {
-            } else if (e.key === "a") {
-            } else if (e.key === "d") {
-            } else if (e.key === "w") {
-            } else if (e.key === "s") {
-            }
-
             switch (e.key) {
                 case "ArrowUp":
                     this.vCamera.y += 8 * elapsedTime;
@@ -338,10 +327,11 @@ class AraucariaEngine {
         let lines = content.split('\n');
 
         for (let line of lines) {
-            if (line.startsWith('v')) {
+            if (line.startsWith('v ')) {
                 let v: vec3d = this.initializeVec3d();
 
                 line = line.substring(line.indexOf('v') + 2, line.length);
+                line = line.trim();
 
                 v.x = Number.parseFloat(line.substring(0, line.indexOf(' ')));
                 line = line.substring(line.indexOf(' ') + 1, line.length);
@@ -352,24 +342,54 @@ class AraucariaEngine {
                 v.z = Number.parseFloat(line.substring(0));
 
                 verts.push(v);
-            } else if (line.startsWith('f')) {
-                let f: number[] = [];
-                let tris: triangle = {p: new Array<vec3d>()};
+            } else if (line.startsWith('f ')) {
+                let points: number[] = [];
 
                 line = line.substring(line.indexOf('f') + 2, line.length);
 
-                f[0] = Number.parseFloat(line.substring(0, line.indexOf(' ')));
-                line = line.substring(line.indexOf(' ') + 1, line.length);
+                let lineArr = line.split(" ");
 
-                f[1] = Number.parseFloat(line.substring(0, line.indexOf(' ')));
-                line = line.substring(line.indexOf(' ') + 1, line.length);
+                for (const element of lineArr) {
+                    if (!element.includes("/")) {
+                        points.push(Number.parseFloat(element));
+                        continue;
+                    }
 
-                f[2] = Number.parseFloat(line.substring(0));
+                    if (element.includes("/")) {
+                        let point: number = Number.parseFloat(element.substring(0, element.indexOf('/')));
 
+                        if (point.toString() === element.substring(0, element.indexOf('/'))) {
+                            points.push(point)
+                        }
+                    }
+                }
 
-                this.populateTriangle(tris, verts[f[0] - 1], verts[f[1] - 1], verts[f[2] - 1]);
+                let fHold = -1;
+                let iteration = 0;
 
-                this.meshCube.tris.push(tris);
+                for (let i = 2; i <= points.length; i += 2) {
+                    iteration += 1;
+
+                    let f0 = points[i - 2];
+                    let f1 = points[i - 1];
+                    let f2 = -1;
+
+                    if (points[i]) {
+                        f2 = points[i];
+                    } else {
+                        f2 = points[0];
+                    }
+
+                    this.meshCube.tris.push(this.populateTriangle(verts[f0 - 1], verts[f1 - 1], verts[f2 - 1]));
+
+                    if (points.length >= 6) {
+                        if (iteration % 2 === 0) {
+                            this.meshCube.tris.push(this.populateTriangle(verts[fHold - 1], verts[f0 - 1], verts[f2 - 1]));
+                        } else {
+                            fHold = f0;
+                        }
+                    }
+                }
             }
         }
     }
@@ -643,10 +663,14 @@ class AraucariaEngine {
         return triangle;
     }
 
-    private populateTriangle(triangle: triangle, vector1: vec3d, vector2: vec3d, vector3: vec3d) {
+    private populateTriangle(vector1: vec3d, vector2: vec3d, vector3: vec3d) {
+        let triangle: triangle = {p: new Array<vec3d>()};
+
         triangle.p.push({ ...vector1 });
         triangle.p.push({ ...vector2 });
         triangle.p.push({ ...vector3 });
+
+        return triangle;
     }
 
     private defineShadeColour(lum: number) {
@@ -751,7 +775,6 @@ class AraucariaEngine {
 let araucaria = new AraucariaEngine();
 
 araucaria.onUserCreate();
-//araucaria.onUserUpdate(0.01);
 
 setInterval(() => {
     araucaria.onUserUpdate(0.0333);

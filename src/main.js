@@ -54,22 +54,6 @@ class AraucariaEngine {
         this.clearScreen();
         let vForward = this.vectorMul(this.vLookDir, 8 * elapsedTime);
         const onKeyDown = (e) => {
-            if (e.key === "ArrowUp") {
-            }
-            else if (e.key === "ArrowDown") {
-            }
-            else if (e.key === "ArrowLeft") {
-            }
-            else if (e.key === "ArrowRight") {
-            }
-            else if (e.key === "a") {
-            }
-            else if (e.key === "d") {
-            }
-            else if (e.key === "w") {
-            }
-            else if (e.key === "s") {
-            }
             switch (e.key) {
                 case "ArrowUp":
                     this.vCamera.y += 8 * elapsedTime;
@@ -243,9 +227,10 @@ class AraucariaEngine {
         let verts = new Array();
         let lines = content.split('\n');
         for (let line of lines) {
-            if (line.startsWith('v')) {
+            if (line.startsWith('v ')) {
                 let v = this.initializeVec3d();
                 line = line.substring(line.indexOf('v') + 2, line.length);
+                line = line.trim();
                 v.x = Number.parseFloat(line.substring(0, line.indexOf(' ')));
                 line = line.substring(line.indexOf(' ') + 1, line.length);
                 v.y = Number.parseFloat(line.substring(0, line.indexOf(' ')));
@@ -253,17 +238,45 @@ class AraucariaEngine {
                 v.z = Number.parseFloat(line.substring(0));
                 verts.push(v);
             }
-            else if (line.startsWith('f')) {
-                let f = [];
-                let tris = { p: new Array() };
+            else if (line.startsWith('f ')) {
+                let points = [];
                 line = line.substring(line.indexOf('f') + 2, line.length);
-                f[0] = Number.parseFloat(line.substring(0, line.indexOf(' ')));
-                line = line.substring(line.indexOf(' ') + 1, line.length);
-                f[1] = Number.parseFloat(line.substring(0, line.indexOf(' ')));
-                line = line.substring(line.indexOf(' ') + 1, line.length);
-                f[2] = Number.parseFloat(line.substring(0));
-                this.populateTriangle(tris, verts[f[0] - 1], verts[f[1] - 1], verts[f[2] - 1]);
-                this.meshCube.tris.push(tris);
+                let lineArr = line.split(" ");
+                for (const element of lineArr) {
+                    if (!element.includes("/")) {
+                        points.push(Number.parseFloat(element));
+                        continue;
+                    }
+                    if (element.includes("/")) {
+                        let point = Number.parseFloat(element.substring(0, element.indexOf('/')));
+                        if (point.toString() === element.substring(0, element.indexOf('/'))) {
+                            points.push(point);
+                        }
+                    }
+                }
+                let fHold = -1;
+                let iteration = 0;
+                for (let i = 2; i <= points.length; i += 2) {
+                    iteration += 1;
+                    let f0 = points[i - 2];
+                    let f1 = points[i - 1];
+                    let f2 = -1;
+                    if (points[i]) {
+                        f2 = points[i];
+                    }
+                    else {
+                        f2 = points[0];
+                    }
+                    this.meshCube.tris.push(this.populateTriangle(verts[f0 - 1], verts[f1 - 1], verts[f2 - 1]));
+                    if (points.length >= 6) {
+                        if (iteration % 2 === 0) {
+                            this.meshCube.tris.push(this.populateTriangle(verts[fHold - 1], verts[f0 - 1], verts[f2 - 1]));
+                        }
+                        else {
+                            fHold = f0;
+                        }
+                    }
+                }
             }
         }
     }
@@ -444,8 +457,7 @@ class AraucariaEngine {
         let outTri2 = this.initializeTriangle();
         planeN = this.vectorNormalize(planeN);
         const dist = (p) => {
-            let n = this.vectorNormalize(p);
-            return (planeN.x * n.x + planeN.y * n.y + planeN.z * n.z - this.vectorDotProduct(planeN, planeP));
+            return (planeN.x * p.x + planeN.y * p.y + planeN.z * p.z - this.vectorDotProduct(planeN, planeP));
         };
         let insidePoints = [this.initializeVec3d(), this.initializeVec3d(), this.initializeVec3d()];
         let outsidePoints = [this.initializeVec3d(), this.initializeVec3d(), this.initializeVec3d()];
@@ -502,10 +514,12 @@ class AraucariaEngine {
         triangle.p[2] = this.initializeVec3d();
         return triangle;
     }
-    populateTriangle(triangle, vector1, vector2, vector3) {
+    populateTriangle(vector1, vector2, vector3) {
+        let triangle = { p: new Array() };
         triangle.p.push({ ...vector1 });
         triangle.p.push({ ...vector2 });
         triangle.p.push({ ...vector3 });
+        return triangle;
     }
     defineShadeColour(lum) {
         const brightness = Math.round(lum * 32);
@@ -601,7 +615,6 @@ class AraucariaEngine {
 //Main function
 let araucaria = new AraucariaEngine();
 araucaria.onUserCreate();
-//araucaria.onUserUpdate(0.01);
 setInterval(() => {
     araucaria.onUserUpdate(0.0333);
 }, 33.3);
